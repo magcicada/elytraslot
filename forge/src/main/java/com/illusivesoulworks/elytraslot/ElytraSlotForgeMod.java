@@ -34,6 +34,7 @@ import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
@@ -57,7 +58,9 @@ public class ElytraSlotForgeMod {
   }
 
   private void setup(final FMLCommonSetupEvent evt) {
-    MinecraftForge.EVENT_BUS.addGenericListener(ItemStack.class, this::attachCapabilities);
+    // Let Curios attach registered ICurioItem adapters before our fallback provider.
+    MinecraftForge.EVENT_BUS.addGenericListener(ItemStack.class, EventPriority.LOWEST,
+        this::attachCapabilities);
     MinecraftForge.EVENT_BUS.addListener(this::playerTick);
 
     if (Services.PLATFORM.isModLoaded("deeperdarker")) {
@@ -85,6 +88,11 @@ public class ElytraSlotForgeMod {
   }
 
   private void attachCapabilities(final AttachCapabilitiesEvent<ItemStack> evt) {
+    // Do not replace an existing integration (for example EvolvedMekanism).
+    // Query the event, not the stack: its capabilities are still being gathered.
+    if (evt.getCapabilities().containsKey(CuriosCapability.ID_ITEM)) {
+      return;
+    }
     ItemStack stack = evt.getObject();
 
     if (ElytraSlotCommonMod.IS_ELYTRA.test(stack)) {
